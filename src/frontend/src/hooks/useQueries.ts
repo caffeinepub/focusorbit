@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useActor } from "./useActor";
-import { SessionType, type StreakData, type UserSettings, type SessionRecord, type Goal } from "../backend.d";
+import { SessionType, type StreakData, type UserSettings, type SessionRecord, type Goal, type UserProfile } from "../backend.d";
 
-export type { StreakData, UserSettings, SessionRecord, Goal };
+export type { StreakData, UserSettings, SessionRecord, Goal, UserProfile };
 export { SessionType };
 
 // ——— Settings ———
@@ -221,6 +221,41 @@ export function useDeleteGoal() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["goals"] });
+    },
+  });
+}
+
+// ——— User Profile ———
+
+export function useGetCallerUserProfile() {
+  const { actor, isFetching: actorFetching } = useActor();
+  const query = useQuery<UserProfile | null>({
+    queryKey: ["currentUserProfile"],
+    queryFn: async () => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.getCallerUserProfile();
+    },
+    enabled: !!actor && !actorFetching,
+    retry: false,
+    staleTime: 60_000,
+  });
+  return {
+    ...query,
+    isLoading: actorFetching || query.isLoading,
+    isFetched: !!actor && query.isFetched,
+  };
+}
+
+export function useSaveCallerUserProfile() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (profile: UserProfile) => {
+      if (!actor) throw new Error("No actor");
+      await actor.saveCallerUserProfile(profile);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["currentUserProfile"] });
     },
   });
 }

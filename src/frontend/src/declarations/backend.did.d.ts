@@ -32,6 +32,10 @@ export interface StreakData {
   'freezeBalance' : bigint,
   'currentStreak' : bigint,
 }
+export interface UserProfile { 'name' : string, 'email' : [] | [string] }
+export type UserRole = { 'admin' : null } |
+  { 'user' : null } |
+  { 'guest' : null };
 export interface UserSettings {
   'longBreakDuration' : bigint,
   'longBreakInterval' : bigint,
@@ -39,11 +43,15 @@ export interface UserSettings {
   'focusDuration' : bigint,
 }
 export interface _SERVICE {
+  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addGoal' : ActorMethod<[string, string, bigint], undefined>,
+  'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'clearAllSessions' : ActorMethod<[], undefined>,
   'deleteGoal' : ActorMethod<[string], undefined>,
   'earnFreeze' : ActorMethod<[], undefined>,
   'getAllGoals' : ActorMethod<[], Array<Goal>>,
+  'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
+  'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getFreezeBalance' : ActorMethod<[], bigint>,
   'getSessionsByDateRange' : ActorMethod<
     [string, string],
@@ -51,7 +59,10 @@ export interface _SERVICE {
   >,
   'getSettings' : ActorMethod<[], UserSettings>,
   'getStreakData' : ActorMethod<[], StreakData>,
+  'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'isCallerAdmin' : ActorMethod<[], boolean>,
   'logSession' : ActorMethod<[bigint, SessionType, string], bigint>,
+  'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setSettings' : ActorMethod<[bigint, bigint, bigint, bigint], undefined>,
   'updateGoal' : ActorMethod<[string, string, bigint, boolean], undefined>,
   'updateStreak' : ActorMethod<

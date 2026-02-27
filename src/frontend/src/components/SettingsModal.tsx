@@ -1,21 +1,26 @@
 import { useState, useEffect } from "react";
-import { Settings, X, Save } from "lucide-react";
+import { Settings, Save, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useSettings, useSaveSettings } from "../hooks/useQueries";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 export function SettingsModal() {
   const { data: settings } = useSettings();
   const saveSettings = useSaveSettings();
+  const { clear } = useInternetIdentity();
+  const queryClient = useQueryClient();
 
   const [focusDur, setFocusDur] = useState(25);
   const [shortBreak, setShortBreak] = useState(5);
   const [longBreak, setLongBreak] = useState(15);
   const [interval, setInterval] = useState(4);
   const [open, setOpen] = useState(false);
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -25,6 +30,19 @@ export function SettingsModal() {
       setInterval(Number(settings.longBreakInterval));
     }
   }, [settings]);
+
+  function handleLogout() {
+    if (!logoutConfirm) {
+      setLogoutConfirm(true);
+      return;
+    }
+    // Second click — actually log out
+    queryClient.clear();
+    clear();
+    toast.success("Logged out. See you in orbit!");
+    setOpen(false);
+    setLogoutConfirm(false);
+  }
 
   async function handleSave() {
     try {
@@ -161,7 +179,7 @@ export function SettingsModal() {
           {/* Save */}
           <Button
             className="w-full gap-2 bg-space-blue/20 text-space-blue border border-space-blue/40 hover:bg-space-blue/30 hover:border-space-blue/70 transition-all"
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={saveSettings.isPending}
           >
             {saveSettings.isPending ? (
@@ -176,6 +194,24 @@ export function SettingsModal() {
               </>
             )}
           </Button>
+
+          {/* Logout — subtle, at the bottom */}
+          <div className="pt-2 border-t border-border/20">
+            <Button
+              variant="ghost"
+              className="w-full gap-2 text-xs font-grotesk transition-all"
+              style={{
+                color: logoutConfirm ? "oklch(0.70 0.18 25)" : "oklch(0.45 0.04 265)",
+                borderColor: logoutConfirm ? "oklch(0.60 0.18 25 / 0.40)" : "transparent",
+                border: logoutConfirm ? "1px solid oklch(0.60 0.18 25 / 0.35)" : "1px solid transparent",
+              }}
+              onClick={handleLogout}
+              onMouseLeave={() => setLogoutConfirm(false)}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {logoutConfirm ? "Click again to confirm logout" : "Log out"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

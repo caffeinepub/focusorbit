@@ -7,16 +7,28 @@ import { TimerPage } from "./pages/TimerPage";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { ConsistencyPage } from "./pages/ConsistencyPage";
 import { SettingsModal } from "./components/SettingsModal";
+import { LoginScreen } from "./components/LoginScreen";
+import { ProfileSetupModal } from "./components/ProfileSetupModal";
 import { BarChart2, Timer, Orbit, Target } from "lucide-react";
+import { useInternetIdentity } from "./hooks/useInternetIdentity";
+import { useGetCallerUserProfile } from "./hooks/useQueries";
 
 type Page = "timer" | "analytics" | "consistency";
 
-export default function App() {
+function AuthenticatedApp() {
   const [page, setPage] = useState<Page>("timer");
+  const { data: userProfile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
+  const { identity } = useInternetIdentity();
+  const isAuthenticated = !!identity;
+
+  const showProfileSetup = isAuthenticated && !profileLoading && isFetched && userProfile === null;
 
   return (
     <TimerProvider>
       <TooltipProvider>
+        {/* Profile setup modal — only shown if no profile yet */}
+        <ProfileSetupModal open={showProfileSetup} />
+
         {/* Starfield background */}
         <Starfield />
 
@@ -144,4 +156,44 @@ export default function App() {
       </TooltipProvider>
     </TimerProvider>
   );
+}
+
+export default function App() {
+  const { identity, isInitializing } = useInternetIdentity();
+  const isAuthenticated = !!identity;
+
+  // While the auth client is initializing (loading stored identity), show nothing
+  // to prevent flicker between login screen and main app.
+  if (isInitializing) {
+    return (
+      <div
+        className="min-h-screen w-full flex items-center justify-center"
+        style={{ background: "oklch(0.07 0.018 265)" }}
+      >
+        <div
+          className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
+          style={{ borderColor: "oklch(0.72 0.18 220 / 0.5)", borderTopColor: "transparent" }}
+        />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <LoginScreen />
+        <Toaster
+          toastOptions={{
+            style: {
+              background: "oklch(0.15 0.03 265)",
+              border: "1px solid oklch(0.30 0.05 265)",
+              color: "oklch(0.93 0.02 240)",
+            },
+          }}
+        />
+      </>
+    );
+  }
+
+  return <AuthenticatedApp />;
 }

@@ -8,11 +8,20 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
+});
 export const Goal = IDL.Record({
   'id' : IDL.Text,
   'active' : IDL.Bool,
   'name' : IDL.Text,
   'dailyTargetSessions' : IDL.Nat,
+});
+export const UserProfile = IDL.Record({
+  'name' : IDL.Text,
+  'email' : IDL.Opt(IDL.Text),
 });
 export const SessionType = IDL.Variant({
   'focus' : IDL.Null,
@@ -40,11 +49,15 @@ export const StreakData = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addGoal' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+  'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'clearAllSessions' : IDL.Func([], [], []),
   'deleteGoal' : IDL.Func([IDL.Text], [], []),
   'earnFreeze' : IDL.Func([], [], []),
   'getAllGoals' : IDL.Func([], [IDL.Vec(Goal)], ['query']),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getFreezeBalance' : IDL.Func([], [IDL.Nat], ['query']),
   'getSessionsByDateRange' : IDL.Func(
       [IDL.Text, IDL.Text],
@@ -53,7 +66,14 @@ export const idlService = IDL.Service({
     ),
   'getSettings' : IDL.Func([], [UserSettings], ['query']),
   'getStreakData' : IDL.Func([], [StreakData], ['query']),
+  'getUserProfile' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Opt(UserProfile)],
+      ['query'],
+    ),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'logSession' : IDL.Func([IDL.Nat, SessionType, IDL.Text], [IDL.Int], []),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'setSettings' : IDL.Func([IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat], [], []),
   'updateGoal' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat, IDL.Bool], [], []),
   'updateStreak' : IDL.Func(
@@ -67,11 +87,20 @@ export const idlService = IDL.Service({
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
+  });
   const Goal = IDL.Record({
     'id' : IDL.Text,
     'active' : IDL.Bool,
     'name' : IDL.Text,
     'dailyTargetSessions' : IDL.Nat,
+  });
+  const UserProfile = IDL.Record({
+    'name' : IDL.Text,
+    'email' : IDL.Opt(IDL.Text),
   });
   const SessionType = IDL.Variant({
     'focus' : IDL.Null,
@@ -99,11 +128,15 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addGoal' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat], [], []),
+    'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'clearAllSessions' : IDL.Func([], [], []),
     'deleteGoal' : IDL.Func([IDL.Text], [], []),
     'earnFreeze' : IDL.Func([], [], []),
     'getAllGoals' : IDL.Func([], [IDL.Vec(Goal)], ['query']),
+    'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getFreezeBalance' : IDL.Func([], [IDL.Nat], ['query']),
     'getSessionsByDateRange' : IDL.Func(
         [IDL.Text, IDL.Text],
@@ -112,7 +145,14 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getSettings' : IDL.Func([], [UserSettings], ['query']),
     'getStreakData' : IDL.Func([], [StreakData], ['query']),
+    'getUserProfile' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Opt(UserProfile)],
+        ['query'],
+      ),
+    'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'logSession' : IDL.Func([IDL.Nat, SessionType, IDL.Text], [IDL.Int], []),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'setSettings' : IDL.Func([IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat], [], []),
     'updateGoal' : IDL.Func([IDL.Text, IDL.Text, IDL.Nat, IDL.Bool], [], []),
     'updateStreak' : IDL.Func(
