@@ -1,0 +1,252 @@
+import Principal "mo:core/Principal";
+import Time "mo:core/Time";
+import Map "mo:core/Map";
+import Order "mo:core/Order";
+import Array "mo:core/Array";
+import Iter "mo:core/Iter";
+import Runtime "mo:core/Runtime";
+import Text "mo:core/Text";
+import List "mo:core/List";
+
+
+
+actor {
+  type SessionType = { #focus; #short_break; #long_break };
+  type SessionRecord = {
+    timestamp : Int;
+    duration : Nat;
+    sessionType : SessionType;
+    dateString : Text;
+  };
+
+  module SessionRecord {
+    public func compare(session1 : SessionRecord, session2 : SessionRecord) : Order.Order {
+      Int.compare(session1.timestamp, session2.timestamp);
+    };
+  };
+
+  type UserSettings = {
+    focusDuration : Nat;
+    shortBreakDuration : Nat;
+    longBreakDuration : Nat;
+    longBreakInterval : Nat;
+  };
+
+  let defaultSettings : UserSettings = {
+    focusDuration = 25;
+    shortBreakDuration = 5;
+    longBreakDuration = 15;
+    longBreakInterval = 4;
+  };
+
+  type StreakData = {
+    currentStreak : Nat;
+    longestStreak : Nat;
+    lastActiveDate : Text;
+    freezeBalance : Nat;
+    freezeUsedToday : Bool;
+  };
+
+  let defaultStreakData : StreakData = {
+    currentStreak = 0;
+    longestStreak = 0;
+    lastActiveDate = "";
+    freezeBalance = 3;
+    freezeUsedToday = false;
+  };
+
+  type Goal = {
+    id : Text;
+    name : Text;
+    dailyTargetSessions : Nat;
+    active : Bool;
+  };
+
+  let userSettings = Map.empty<Principal, UserSettings>();
+  let userSessions = Map.empty<Principal, List.List<SessionRecord>>();
+  let userStreaks = Map.empty<Principal, StreakData>();
+  let userGoals = Map.empty<Principal, List.List<Goal>>();
+
+  public shared ({ caller }) func setSettings(focusDuration : Nat, shortBreakDuration : Nat, longBreakDuration : Nat, longBreakInterval : Nat) : async () {
+    let settings : UserSettings = {
+      focusDuration;
+      shortBreakDuration;
+      longBreakDuration;
+      longBreakInterval;
+    };
+    userSettings.add(caller, settings);
+  };
+
+  public query ({ caller }) func getSettings() : async UserSettings {
+    switch (userSettings.get(caller)) {
+      case (null) { defaultSettings };
+      case (?settings) { settings };
+    };
+  };
+
+  public shared ({ caller }) func logSession(duration : Nat, sessionType : SessionType, dateString : Text) : async Int {
+    let timestamp = Time.now() / 1_000_000_000;
+
+    let session : SessionRecord = {
+      timestamp;
+      duration;
+      sessionType;
+      dateString;
+    };
+
+    let sessionsList = switch (userSessions.get(caller)) {
+      case (null) {
+        let newList = List.empty<SessionRecord>();
+        newList.add(session);
+        newList;
+      };
+      case (?existing) {
+        existing.add(session);
+        existing;
+      };
+    };
+
+    userSessions.add(caller, sessionsList);
+    timestamp;
+  };
+
+  public query ({ caller }) func getSessionsByDateRange(startDate : Text, endDate : Text) : async [SessionRecord] {
+    switch (userSessions.get(caller)) {
+      case (null) { [] };
+      case (?sessions) {
+        sessions.toArray().sort().filter(
+          func(s) {
+            s.dateString >= startDate and s.dateString <= endDate
+          }
+        );
+      };
+    };
+  };
+
+  public shared ({ caller }) func clearAllSessions() : async () {
+    userSessions.remove(caller);
+  };
+
+  public query ({ caller }) func getStreakData() : async StreakData {
+    switch (userStreaks.get(caller)) {
+      case (null) { defaultStreakData };
+      case (?data) { data };
+    };
+  };
+
+  public shared ({ caller }) func updateStreak(currentStreak : Nat, longestStreak : Nat, lastActiveDate : Text, freezeBalance : Nat, freezeUsedToday : Bool) : async () {
+    let streakData : StreakData = {
+      currentStreak;
+      longestStreak;
+      lastActiveDate;
+      freezeBalance;
+      freezeUsedToday;
+    };
+    userStreaks.add(caller, streakData);
+  };
+
+  public query ({ caller }) func getFreezeBalance() : async Nat {
+    switch (userStreaks.get(caller)) {
+      case (null) { defaultStreakData.freezeBalance };
+      case (?data) { data.freezeBalance };
+    };
+  };
+
+  public shared ({ caller }) func useFreeze() : async () {
+    let streakData = switch (userStreaks.get(caller)) {
+      case (null) { defaultStreakData };
+      case (?data) { data };
+    };
+
+    if (streakData.freezeBalance == 0) {
+      Runtime.trap("No freezes available");
+    };
+
+    let updatedData : StreakData = {
+      streakData with
+      freezeBalance = streakData.freezeBalance - 1;
+      freezeUsedToday = true;
+    };
+    userStreaks.add(caller, updatedData);
+  };
+
+  public shared ({ caller }) func earnFreeze() : async () {
+    let streakData = switch (userStreaks.get(caller)) {
+      case (null) { defaultStreakData };
+      case (?data) { data };
+    };
+
+    if (streakData.freezeBalance >= 5) {
+      return;
+    };
+
+    let updatedData : StreakData = {
+      streakData with
+      freezeBalance = streakData.freezeBalance + 1;
+    };
+    userStreaks.add(caller, updatedData);
+  };
+
+  // Goals/Commitments
+
+  public shared ({ caller }) func addGoal(id : Text, name : Text, dailyTargetSessions : Nat) : async () {
+    let newGoal : Goal = {
+      id;
+      name;
+      dailyTargetSessions;
+      active = true;
+    };
+
+    let goalsList = switch (userGoals.get(caller)) {
+      case (null) {
+        let newList = List.empty<Goal>();
+        newList.add(newGoal);
+        newList;
+      };
+      case (?existing) {
+        existing.add(newGoal);
+        existing;
+      };
+    };
+
+    userGoals.add(caller, goalsList);
+  };
+
+  public query ({ caller }) func getAllGoals() : async [Goal] {
+    switch (userGoals.get(caller)) {
+      case (null) { [] };
+      case (?goals) { goals.toArray() };
+    };
+  };
+
+  public shared ({ caller }) func updateGoal(id : Text, name : Text, dailyTargetSessions : Nat, active : Bool) : async () {
+    let goalsList = switch (userGoals.get(caller)) {
+      case (null) { Runtime.trap("No goals found") };
+      case (?existing) {
+        existing.map<Goal, Goal>(
+          func(goal) {
+            if (goal.id == id) {
+              {
+                id;
+                name;
+                dailyTargetSessions;
+                active;
+              };
+            } else { goal };
+          }
+        );
+      };
+    };
+    userGoals.add(caller, goalsList);
+  };
+
+  public shared ({ caller }) func deleteGoal(id : Text) : async () {
+    let goalsList = switch (userGoals.get(caller)) {
+      case (null) { Runtime.trap("No goals found") };
+      case (?existing) {
+        let filteredGoals = existing.filter(func(goal) { goal.id != id });
+        userGoals.add(caller, filteredGoals);
+      };
+    };
+  };
+};
